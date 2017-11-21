@@ -22,6 +22,7 @@ from six.moves.urllib.parse import urljoin
 from tqdm import tqdm
 
 from . import __version__ as sentinelsat_version
+from .exceptions import InvalidChecksumError, SentinelAPIError
 
 
 class SentinelAPI:
@@ -279,7 +280,7 @@ class SentinelAPI:
                     'Invalid query string. Check the parameters and format.', response)
             total_results = int(json_feed['opensearch:totalResults'])
         except (ValueError, KeyError):
-            raise SentinelAPIError('API response not valid. JSON decoding failed.', response)
+            raise ServerError('API response not valid. JSON decoding failed.', response)
 
         products = json_feed.get('entry', [])
         # this verification is necessary because if the query returns only
@@ -748,26 +749,6 @@ class SentinelAPI:
         return tqdm(**kwargs)
 
 
-class SentinelAPIError(Exception):
-    """Invalid responses from DataHub.
-    """
-
-    def __init__(self, msg=None, response=None):
-        self.msg = msg
-        self.response = response
-
-    def __str__(self):
-        return 'HTTP status {0} {1}: {2}'.format(
-            self.response.status_code, self.response.reason,
-            ('\n' if '\n' in self.msg else '') + self.msg)
-
-
-class InvalidChecksumError(Exception):
-    """MD5 checksum of a local file does not match the one from the server.
-    """
-    pass
-
-
 def read_geojson(geojson_file):
     """Read a GeoJSON file into a GeoJSON object.
     """
@@ -857,6 +838,10 @@ def _check_scihub_response(response, test_json=True):
         if test_json:
             response.json()
     except (requests.HTTPError, ValueError):
+        if response.status_code == 401:
+            raise AuthenticationError("Invalid authentication credentials", response)
+        elif response.status_code >= 500:
+            raise ServerError("Server returned an error", response)
         msg = "Invalid API response."
         try:
             msg = response.headers['cause-message']

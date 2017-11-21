@@ -5,7 +5,8 @@ import click
 import geojson as gj
 
 from sentinelsat import __version__ as sentinelsat_version
-from sentinelsat.sentinel import SentinelAPI, SentinelAPIError, geojson_to_wkt, read_geojson
+from sentinelsat.exceptions import SentinelAPIError
+from sentinelsat.sentinel import SentinelAPI, geojson_to_wkt, read_geojson
 
 logger = logging.getLogger('sentinelsat')
 
